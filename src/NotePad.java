@@ -7,13 +7,23 @@ import java.io.PrintWriter;
 
 public class NotePad extends JFrame implements ActionListener {
 
+    private JMenuItem mniNew = null;
+    private JMenuItem mniopen = null;
+
+    private JMenuItem mniSave = null;
+    private JMenuItem mniSaveAs = null;
+
+    private JMenuItem mniExit = null;
+
     private JTextArea txt = null;
+
+    private String title = "Untitled";
 
     public NotePad(){
         setSize(500,600);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setTitle("New NotePad");
+        setTitle(this.title);
         initUi();
         setVisible(true);
     }
@@ -22,20 +32,23 @@ public class NotePad extends JFrame implements ActionListener {
 
         JMenuBar menuBar = new JMenuBar();
         JMenu mnFile = new JMenu("File");
-        JMenuItem mniNew = new JMenuItem("New");
+        mniNew = new JMenuItem("New");
         mniNew.addActionListener(this);
-        JMenuItem mniopen = new JMenuItem("Open...");
+        mniopen = new JMenuItem("Open...");
         mniopen.addActionListener(this);
         mnFile.add(mniNew);
         mnFile.add(mniopen);
         mnFile.addSeparator();
-        JMenuItem mniSave = new JMenuItem("Save");
+        mniSave = new JMenuItem("Save");
         mniSave.addActionListener(this);
-        JMenuItem mniSaveAs = new JMenuItem("Save as...");
+        mniSaveAs = new JMenuItem("Save as...");
         mniSaveAs.addActionListener(this);
+        mnFile.add(mniSave);
+        mnFile.add(mniSaveAs);
         mnFile.addSeparator();
-        JMenuItem mniExit = new JMenuItem("Exit");
+        mniExit = new JMenuItem("Exit");
         mniExit.addActionListener(this);
+        mnFile.add(mniExit);
         menuBar.add(mnFile);
 
         add(menuBar, BorderLayout.NORTH);
@@ -45,10 +58,11 @@ public class NotePad extends JFrame implements ActionListener {
         add(scrollPane);
     }
 
-    private void SaveAs(){
+    private void save(){
         try {
-            PrintWriter pw = new PrintWriter("prova"+".txt");
-
+            PrintWriter pw = new PrintWriter(title+".txt");
+            pw.println(txt.getText());
+            pw.close();
         } catch (FileNotFoundException e) {
             throw new RuntimeException(e);
         }
@@ -58,6 +72,18 @@ public class NotePad extends JFrame implements ActionListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
+        if (e.getSource() == mniSave){
+            save();
+        }
+    }
 
+    @Override
+    public String getTitle() {
+        return title;
+    }
+
+    @Override
+    public void setTitle(String title) {
+        this.title = title;
     }
 }
