@@ -21,6 +21,8 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
     private JMenuItem mniZoomOut = null;
     private JMenuItem mniResetZoom = null;
 
+    private JCheckBoxMenuItem mncStatusBar = null;
+
     private JMenuItem mniExit = null;
 
     private JMenuItem mniAbout = null;
@@ -36,9 +38,14 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
 
     private String savedText = "";
 
-    private int fontSize = 12;
+    private int fontSize = 10;
 
-    private JLabel lblLineCol = new JLabel("Ln 1,Col 1");
+    private JMenuBar mnSouth = new JMenuBar();
+
+    private JLabel lblLineCol = new JLabel("Ln 1,Col 1   ");
+    private JLabel lblCharNumber = new JLabel("   0 characters");
+
+    private JLabel lblZoom = new JLabel("100%   ");
 
     public NotePad(){
         setSize(500,600);
@@ -85,6 +92,11 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
         mniResetZoom.addActionListener(this);
         mnView.add(mnpZoom);
 
+        mncStatusBar = new JCheckBoxMenuItem("Status bar");
+        mncStatusBar.setState(true);
+        mncStatusBar.addActionListener(this);
+        mnView.add(mncStatusBar);
+
         JMenu mnHelp = new JMenu("Help");
         mniAbout = new JMenuItem("About");
         mniAbout.addActionListener(this);
@@ -97,20 +109,61 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
         txt = new JTextArea();
         txt.addCaretListener(this);
         txt.getDocument().addDocumentListener(this);
+        txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
         JScrollPane scrollPane = new JScrollPane(txt);
         add(scrollPane,BorderLayout.CENTER);
 
-        JMenuBar mnSouth = new JMenuBar();
+        mnSouth = new JMenuBar();
         JPanel pnlSouth = new JPanel(new GridLayout(1,2));
-        JPanel pnlLeft = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JPanel pnlRight = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel pnlLeftGrid = new JPanel(new GridBagLayout());
+        GridBagConstraints layoutContraintsLeft = new GridBagConstraints();
+        JPanel pnlRightGrid = new JPanel(new GridBagLayout());
+        GridBagConstraints layoutContraintsRight = new GridBagConstraints();
 
         lblLineCol.setFont(new Font(lblLineCol.getFont().getName(),lblLineCol.getFont().getStyle(),10));
-        pnlLeft.add(lblLineCol);
-        pnlLeft.add(new JSeparator());
+        lblCharNumber.setFont(new Font(lblCharNumber.getFont().getName(),lblCharNumber.getFont().getStyle(),10));
+
+        layoutContraintsLeft.gridy = 0;
+        layoutContraintsLeft.gridx = 0;
+
+        layoutContraintsLeft.weightx = 1.0;
+
+        pnlLeftGrid.add(lblLineCol,layoutContraintsLeft);
+        JSeparator sepLeft = new JSeparator(SwingConstants.VERTICAL);
+        layoutContraintsLeft.gridy = 0;
+        layoutContraintsLeft.gridx = 1;
+        layoutContraintsLeft.fill = GridBagConstraints.VERTICAL;
+        pnlLeftGrid.add(sepLeft,layoutContraintsLeft);
+        layoutContraintsLeft.gridy = 0;
+        layoutContraintsLeft.gridx = 2;
+        pnlLeftGrid.add(lblCharNumber,layoutContraintsLeft);
+
+        JPanel pnlLeft = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        pnlLeft.add(pnlLeftGrid);
+
+        layoutContraintsRight.gridy = 0;
+        layoutContraintsRight.gridx = 0;
+
+        layoutContraintsRight.weightx = 1.0;
+
+        JLabel lblUTF = new JLabel("   UTF-16");
+        lblUTF.setFont(new Font(lblUTF.getFont().getName(),lblUTF.getFont().getStyle(),10));
+        lblZoom.setFont(new Font(lblZoom.getFont().getName(),lblZoom.getFont().getStyle(),10));
+        pnlRightGrid.add(lblZoom,layoutContraintsRight);
+        JSeparator sepRight = new JSeparator(SwingConstants.VERTICAL);
+        layoutContraintsRight.gridy = 0;
+        layoutContraintsRight.gridx = 1;
+        layoutContraintsRight.fill = GridBagConstraints.VERTICAL;
+        pnlRightGrid.add(sepRight,layoutContraintsRight);
+        layoutContraintsRight.gridy = 0;
+        layoutContraintsRight.gridx = 2;
+        pnlRightGrid.add(lblUTF,layoutContraintsRight);
+
+        JPanel pnlLright = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        pnlLright.add(pnlRightGrid);
 
         pnlSouth.add(pnlLeft);
-        pnlSouth.add(pnlRight);
+        pnlSouth.add(pnlLright);
         mnSouth.add(pnlSouth);
         add(mnSouth,BorderLayout.SOUTH);
     }
@@ -250,23 +303,26 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
             JOptionPane.showMessageDialog(this,"Block notes 1.0","About",JOptionPane.INFORMATION_MESSAGE);
         }
         if (e.getSource() == mniZoomIn){
-            if(fontSize < 72) {
-                fontSize += 2;
+            if(fontSize < 50) {
+                fontSize += 1;
                 txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
-                System.out.println(fontSize);
-                System.out.println(txt.getFont());
             }
+            lblZoom.setText((fontSize*10)+"%   ");
         }
         if (e.getSource() == mniZoomOut){
-            if(fontSize > 2) {
-                fontSize -= 2;
+            if(fontSize > 1) {
+                fontSize -= 1;
                 txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
             }
+            lblZoom.setText((fontSize*10)+"%   ");
         }
         if(e.getSource() == mniResetZoom){
-            fontSize = 12;
+            fontSize = 10;
             txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
+            lblZoom.setText("100%   ");
         }
+        if (e.getSource() == mncStatusBar)
+            mnSouth.setVisible(mncStatusBar.getState());
     }
 
     @Override
@@ -336,7 +392,8 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
         try {
             row = txt.getLineOfOffset(caretpos);
             int column = caretpos - txt.getLineStartOffset(row);
-            lblLineCol.setText("Ln "+(row+1)+",Col "+(column+1));
+            lblLineCol.setText("Ln "+(row+1)+",Col "+(column+1)+"   ");
+            lblCharNumber.setText("   "+txt.getText().length()+" characters");
         } catch (BadLocationException ex) {
             throw new RuntimeException(ex);
         }
