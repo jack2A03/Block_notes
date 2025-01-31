@@ -1,11 +1,14 @@
 import javax.swing.*;
+import javax.swing.event.CaretEvent;
+import javax.swing.event.CaretListener;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.text.BadLocationException;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 
-public class NotePad extends JFrame implements ActionListener,DocumentListener,WindowListener {
+public class NotePad extends JFrame implements ActionListener,DocumentListener,WindowListener, CaretListener {
 
     private JMenuItem mniNew = null;
     private JMenuItem mniopen = null;
@@ -34,6 +37,8 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
     private String savedText = "";
 
     private int fontSize = 12;
+
+    private JLabel lblLineCol = new JLabel("Ln 1,Col 1");
 
     public NotePad(){
         setSize(500,600);
@@ -67,7 +72,7 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
         mniExit.addActionListener(this);
         mnFile.add(mniExit);
 
-        JMenu mnModify = new JMenu("Modify");
+        JMenu mnView = new JMenu("View");
         mnpZoom = new JMenu("Zoom");
         mniZoomIn = new JMenuItem("Zoom in");
         mniZoomOut = new JMenuItem("Zoom out");
@@ -75,22 +80,39 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
         mnpZoom.add(mniZoomIn);
         mnpZoom.add(mniZoomOut);
         mnpZoom.add(mniResetZoom);
-        mnModify.add(mnpZoom);
+        mniZoomIn.addActionListener(this);
+        mniZoomOut.addActionListener(this);
+        mniResetZoom.addActionListener(this);
+        mnView.add(mnpZoom);
 
         JMenu mnHelp = new JMenu("Help");
         mniAbout = new JMenuItem("About");
         mniAbout.addActionListener(this);
         mnHelp.add(mniAbout);
         menuBar.add(mnFile);
-        menuBar.add(mnModify);
+        menuBar.add(mnView);
         menuBar.add(mnHelp);
         add(menuBar, BorderLayout.NORTH);
 
         txt = new JTextArea();
+        txt.addCaretListener(this);
         txt.getDocument().addDocumentListener(this);
         JScrollPane scrollPane = new JScrollPane(txt);
-        add(scrollPane);
-        System.out.println(txt.getFont());
+        add(scrollPane,BorderLayout.CENTER);
+
+        JMenuBar mnSouth = new JMenuBar();
+        JPanel pnlSouth = new JPanel(new GridLayout(1,2));
+        JPanel pnlLeft = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel pnlRight = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+
+        lblLineCol.setFont(new Font(lblLineCol.getFont().getName(),lblLineCol.getFont().getStyle(),10));
+        pnlLeft.add(lblLineCol);
+        pnlLeft.add(new JSeparator());
+
+        pnlSouth.add(pnlLeft);
+        pnlSouth.add(pnlRight);
+        mnSouth.add(pnlSouth);
+        add(mnSouth,BorderLayout.SOUTH);
     }
 
     private void save() {
@@ -228,8 +250,22 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
             JOptionPane.showMessageDialog(this,"Block notes 1.0","About",JOptionPane.INFORMATION_MESSAGE);
         }
         if (e.getSource() == mniZoomIn){
-            fontSize+=2;
-            txt.setFont(new Font(txt.getFont().getName(),txt.getFont().getStyle(),fontSize));
+            if(fontSize < 72) {
+                fontSize += 2;
+                txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
+                System.out.println(fontSize);
+                System.out.println(txt.getFont());
+            }
+        }
+        if (e.getSource() == mniZoomOut){
+            if(fontSize > 2) {
+                fontSize -= 2;
+                txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
+            }
+        }
+        if(e.getSource() == mniResetZoom){
+            fontSize = 12;
+            txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
         }
     }
 
@@ -291,6 +327,19 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
     @Override
     public void windowDeactivated(WindowEvent e) {
 
+    }
+
+    @Override
+    public void caretUpdate(CaretEvent e) {
+        int caretpos = txt.getCaretPosition();
+        int row = 0;
+        try {
+            row = txt.getLineOfOffset(caretpos);
+            int column = caretpos - txt.getLineStartOffset(row);
+            lblLineCol.setText("Ln "+(row+1)+",Col "+(column+1));
+        } catch (BadLocationException ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
     //endregion
