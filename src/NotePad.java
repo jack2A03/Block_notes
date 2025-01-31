@@ -22,6 +22,7 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
     private JMenuItem mniResetZoom = null;
 
     private JCheckBoxMenuItem mncStatusBar = null;
+    private JCheckBoxMenuItem mncWordWrap = null;
 
     private JMenuItem mniExit = null;
 
@@ -97,6 +98,11 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
         mncStatusBar.addActionListener(this);
         mnView.add(mncStatusBar);
 
+        mncWordWrap = new JCheckBoxMenuItem("Word wrap");
+        mncWordWrap.setState(true);
+        mncWordWrap.addActionListener(this);
+        mnView.add(mncWordWrap);
+
         JMenu mnHelp = new JMenu("Help");
         mniAbout = new JMenuItem("About");
         mniAbout.addActionListener(this);
@@ -109,6 +115,7 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
         txt = new JTextArea();
         txt.addCaretListener(this);
         txt.getDocument().addDocumentListener(this);
+        txt.setLineWrap(true);
         txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
         JScrollPane scrollPane = new JScrollPane(txt);
         add(scrollPane,BorderLayout.CENTER);
@@ -323,6 +330,8 @@ public class NotePad extends JFrame implements ActionListener,DocumentListener,W
         }
         if (e.getSource() == mncStatusBar)
             mnSouth.setVisible(mncStatusBar.getState());
+        if (e.getSource() == mncWordWrap)
+            txt.setLineWrap(mncWordWrap.getState());
     }
 
     @Override
