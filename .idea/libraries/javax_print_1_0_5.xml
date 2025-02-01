@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="javax.print-1.0.5">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/Jars/javax.print-1.0.5.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+    <jarDirectory url="jar://$USER_HOME$/Jars/javax.print-1.0.5.jar!/" recursive="false" />
+  </library>
+</component>
