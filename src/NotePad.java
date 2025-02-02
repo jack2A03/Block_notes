@@ -1,20 +1,23 @@
-import javax.print.*;
 import javax.swing.*;
-import javax.swing.event.CaretEvent;
-import javax.swing.event.CaretListener;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
+import javax.swing.event.*;
 import javax.swing.text.BadLocationException;
+import javax.swing.text.Document;
+import javax.swing.undo.CannotRedoException;
+import javax.swing.undo.CannotUndoException;
+import javax.swing.undo.UndoManager;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
 import java.io.*;
+import java.util.List;
 
 public class NotePad extends JFrame implements ActionListener, DocumentListener, WindowListener, CaretListener {
 
+    //region atr
+    //region GUI atr
     private JMenuItem mniNew = null;
-    private JMenuItem mniopen = null;
+    private JMenuItem mniOpen = null;
 
     private JMenuItem mniSave = null;
     private JMenuItem mniSaveAs = null;
@@ -30,7 +33,6 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
     private JMenuItem mniPaste = null;
     private JMenuItem mniDelete = null;
 
-    private JMenu mnpZoom = null;
     private JMenuItem mniZoomIn = null;
     private JMenuItem mniZoomOut = null;
     private JMenuItem mniResetZoom = null;
@@ -42,24 +44,48 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
 
     private JTextArea txt = null;
 
+    private JMenuBar mnSouth = new JMenuBar();
+
+    private final JLabel lblLineCol = new JLabel("Ln 1,Col 1   ");
+    private final JLabel lblCharNumber = new JLabel("   0 characters");
+
+    private final JLabel lblZoom = new JLabel("100%   ");
+
+    private JLabel lblNumFuond = null;
+
+    private JButton btnReplace = null;
+    private JButton btnReplaceAll = null;
+    private JButton btnFindNext = null;
+    private JButton btnCancel = null;
+
+    private JCheckBox ckbMatchCase = null;
+    private JCheckBox ckbWords = null;
+    //endregion
+
+    //region normal atr
     private String absolutePath = System.getProperty("user.home") + File.separator + "Desktop/Untitled.txt";
 
     private String title = "Untitled";
 
-    private boolean saved = true;
+    private boolean saved = false;
     private boolean savedSmw = false;
 
     private String savedText = "";
 
     private int fontSize = 10;
 
-    private JMenuBar mnSouth = new JMenuBar();
+    private String strFind = "";
 
-    private JLabel lblLineCol = new JLabel("Ln 1,Col 1   ");
-    private JLabel lblCharNumber = new JLabel("   0 characters");
+    private final UndoManager manager = new UndoManager();
 
-    private JLabel lblZoom = new JLabel("100%   ");
+    private boolean startWithfind = false;
+    private boolean endWithfind = false;
 
+    private int currentFindPos = 0;
+    //endregion
+    //endregion
+
+    //region cost
     public NotePad() {
         setSize(500, 600);
         setLocationRelativeTo(null);
@@ -68,50 +94,82 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         setTitle(this.title);
         initUi();
         setVisible(true);
+        findAndReplace();
+        findTxt();
     }
+    //endregion
 
     private void initUi() {
 
+        //region mnFile
         JMenuBar menuBar = new JMenuBar();
         JMenu mnFile = new JMenu("File");
         mniNew = new JMenuItem("New");
         mniNew.addActionListener(this);
-        mniopen = new JMenuItem("Open...");
-        mniopen.addActionListener(this);
+        mniNew.setToolTipText("CTRL+N");
+        mniOpen = new JMenuItem("Open...");
+        mniOpen.addActionListener(this);
+        mniOpen.setToolTipText("CTRL+O");
         mnFile.add(mniNew);
-        mnFile.add(mniopen);
+        mnFile.add(mniOpen);
         mnFile.addSeparator();
         mniSave = new JMenuItem("Save");
         mniSave.addActionListener(this);
+        mniSave.setToolTipText("CTRL+S");
         mniSaveAs = new JMenuItem("Save as...");
         mniSaveAs.addActionListener(this);
+        mniSaveAs.setToolTipText("CTRL+SHIFT+S");
         mnFile.add(mniSave);
         mnFile.add(mniSaveAs);
         mnFile.addSeparator();
         mniPrint = new JMenuItem("Print");
         mniPrint.addActionListener(this);
+        mniPrint.setToolTipText("CTRL+P");
         mnFile.add(mniPrint);
         mnFile.addSeparator();
         mniExit = new JMenuItem("Exit");
         mniExit.addActionListener(this);
         mnFile.add(mniExit);
+        //endregion
 
+        //region mnEdit
         JMenu mnEdit = new JMenu("Edit");
+        mniUndo = new JMenuItem("Undo");
+        mniUndo.setToolTipText("CTRL+Z");
+        mniUndo.addActionListener(this);
+        mnEdit.add(mniUndo);
+        mnEdit.addSeparator();
         mniCut = new JMenuItem("Cut");
+        mniCut.setToolTipText("CTRL+X");
         mniCut.addActionListener(this);
         mnEdit.add(mniCut);
         mniCopy = new JMenuItem("Copy");
+        mniCopy.setToolTipText("CTRL+C");
         mniCopy.addActionListener(this);
         mnEdit.add(mniCopy);
         mniPaste = new JMenuItem("Paste");
+        mniPaste.setToolTipText("CTRL+V");
         mniPaste.addActionListener(this);
         mnEdit.add(mniPaste);
         mniDelete = new JMenuItem("Delete");
+        mniDelete.setToolTipText("CANC");
         mniDelete.addActionListener(this);
         mnEdit.add(mniDelete);
+        mnEdit.addSeparator();
+        JMenuItem mniSelectAll = new JMenuItem("Select All");
+        mniSelectAll.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                txt.selectAll();
+            }
+        });
+        mniSelectAll.setToolTipText("CTRL+A");
+        mnEdit.add(mniSelectAll);
+        //endregion
 
+        //region mnView
         JMenu mnView = new JMenu("View");
-        mnpZoom = new JMenu("Zoom");
+        JMenu mnpZoom = new JMenu("Zoom");
         mniZoomIn = new JMenuItem("Zoom in");
         mniZoomOut = new JMenuItem("Zoom out");
         mniResetZoom = new JMenuItem("Reset zoom");
@@ -122,120 +180,238 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         mniZoomOut.addActionListener(this);
         mniResetZoom.addActionListener(this);
         mnView.add(mnpZoom);
-
         mncStatusBar = new JCheckBoxMenuItem("Status bar");
         mncStatusBar.setState(true);
         mncStatusBar.addActionListener(this);
         mnView.add(mncStatusBar);
-
         mncWordWrap = new JCheckBoxMenuItem("Word wrap");
         mncWordWrap.setState(true);
         mncWordWrap.addActionListener(this);
         mnView.add(mncWordWrap);
+        //endregion
 
+        //region mnHelp
         JMenu mnHelp = new JMenu("Help");
         mniAbout = new JMenuItem("About");
         mniAbout.addActionListener(this);
         mnHelp.add(mniAbout);
+        //endregion
+
+        //region menuBar
         menuBar.add(mnFile);
         menuBar.add(mnEdit);
         menuBar.add(mnView);
         menuBar.add(mnHelp);
         add(menuBar, BorderLayout.NORTH);
+        //endregion
 
+        //region txt + keyStrokes
+
+        //region txt
         txt = new JTextArea();
         txt.addCaretListener(this);
         txt.getDocument().addDocumentListener(this);
         txt.setLineWrap(true);
         txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
+        //endregion
+
+        //region KeyStrokeActions
+        Document document = txt.getDocument();
+        document.addUndoableEditListener(e -> manager.addEdit(e.getEdit()));
+
+        KeyStroke undoKeyStroke = KeyStroke.getKeyStroke(
+                KeyEvent.VK_Z, InputEvent.CTRL_DOWN_MASK);
+        KeyStroke redoKeyStroke = KeyStroke.getKeyStroke(
+                KeyEvent.VK_Y, InputEvent.CTRL_DOWN_MASK);
+        KeyStroke newNotePadKeyStroke = KeyStroke.getKeyStroke(
+                KeyEvent.VK_N, InputEvent.CTRL_DOWN_MASK);
+        KeyStroke openNotePadKeyStroke = KeyStroke.getKeyStroke(
+                KeyEvent.VK_O, InputEvent.CTRL_DOWN_MASK);
+        KeyStroke saveKeyStroke = KeyStroke.getKeyStroke(
+                KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK);
+        KeyStroke printKeyStroke = KeyStroke.getKeyStroke(
+                KeyEvent.VK_P, InputEvent.CTRL_DOWN_MASK);
+
+        txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(undoKeyStroke, "undoKeyStroke");
+        txt.getActionMap().put("undoKeyStroke", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                try {
+                    manager.undo();
+                } catch (CannotUndoException ignored) {
+                }
+            }
+        });
+
+        txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(redoKeyStroke, "redoKeyStroke");
+        txt
+                .getActionMap().put("redoKeyStroke", new AbstractAction() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        try {
+                            manager.redo();
+                        } catch (CannotRedoException ignored) {
+                        }
+                    }
+                });
+
+        txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(newNotePadKeyStroke, "newNotePadKeyStroke");
+        txt
+                .getActionMap().put("newNotePadKeyStroke", new AbstractAction() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        try {
+                            newNotePad();
+                        } catch (CannotRedoException ignored) {
+                        }
+                    }
+                });
+
+        txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(openNotePadKeyStroke, "openNotePadKeyStroke");
+        txt
+                .getActionMap().put("openNotePadKeyStroke", new AbstractAction() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        try {
+                            open();
+                        } catch (CannotRedoException ignored) {
+                        }
+                    }
+                });
+
+        txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(saveKeyStroke, "saveKeyStroke");
+        txt
+                .getActionMap().put("saveKeyStroke", new AbstractAction() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        try {
+                            if (!savedSmw)
+                                saveAs();
+                            else
+                                save();
+                        } catch (CannotRedoException ignored) {
+                        }
+                    }
+                });
+
+        txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke("control shift S"), "savaAsKeyStroke");
+        txt
+                .getActionMap().put("savaAsKeyStroke", new AbstractAction() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        try {
+                            saveAs();
+                        } catch (CannotRedoException ignored) {
+                        }
+                    }
+                });
+
+        txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(printKeyStroke, "printKeyStroke");
+        txt
+                .getActionMap().put("printKeyStroke", new AbstractAction() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        try {
+                            printToPrinter();
+                        } catch (CannotRedoException ignored) {
+                        }
+                    }
+                });
+        //endregion
+        //endregion
+
+        //region ScrollPane
         JScrollPane scrollPane = new JScrollPane(txt);
         add(scrollPane, BorderLayout.CENTER);
+        //endregion
 
+        //region ComponentsSouthBar
         mnSouth = new JMenuBar();
         JPanel pnlSouth = new JPanel(new GridLayout(1, 2));
         JPanel pnlLeftGrid = new JPanel(new GridBagLayout());
-        GridBagConstraints layoutContraintsLeft = new GridBagConstraints();
+        GridBagConstraints layoutConstraintLeft = new GridBagConstraints();
         JPanel pnlRightGrid = new JPanel(new GridBagLayout());
-        GridBagConstraints layoutContraintsRight = new GridBagConstraints();
+        GridBagConstraints layoutConstraintsRight = new GridBagConstraints();
+        //endregion
 
+        //region LeftSouthBar
         lblLineCol.setFont(new Font(lblLineCol.getFont().getName(), lblLineCol.getFont().getStyle(), 10));
         lblCharNumber.setFont(new Font(lblCharNumber.getFont().getName(), lblCharNumber.getFont().getStyle(), 10));
 
-        layoutContraintsLeft.gridy = 0;
-        layoutContraintsLeft.gridx = 0;
+        layoutConstraintLeft.gridy = 0;
+        layoutConstraintLeft.gridx = 0;
 
-        layoutContraintsLeft.weightx = 1.0;
+        layoutConstraintLeft.weightx = 1.0;
 
-        pnlLeftGrid.add(lblLineCol, layoutContraintsLeft);
+        pnlLeftGrid.add(lblLineCol, layoutConstraintLeft);
         JSeparator sepLeft = new JSeparator(SwingConstants.VERTICAL);
-        layoutContraintsLeft.gridy = 0;
-        layoutContraintsLeft.gridx = 1;
-        layoutContraintsLeft.fill = GridBagConstraints.VERTICAL;
-        pnlLeftGrid.add(sepLeft, layoutContraintsLeft);
-        layoutContraintsLeft.gridy = 0;
-        layoutContraintsLeft.gridx = 2;
-        pnlLeftGrid.add(lblCharNumber, layoutContraintsLeft);
+        layoutConstraintLeft.gridy = 0;
+        layoutConstraintLeft.gridx = 1;
+        layoutConstraintLeft.fill = GridBagConstraints.VERTICAL;
+        pnlLeftGrid.add(sepLeft, layoutConstraintLeft);
+        layoutConstraintLeft.gridy = 0;
+        layoutConstraintLeft.gridx = 2;
+        pnlLeftGrid.add(lblCharNumber, layoutConstraintLeft);
 
         JPanel pnlLeft = new JPanel(new FlowLayout(FlowLayout.LEFT));
         pnlLeft.add(pnlLeftGrid);
+        //endregion
 
-        layoutContraintsRight.gridy = 0;
-        layoutContraintsRight.gridx = 0;
+        //region RightSouthBar
+        layoutConstraintsRight.gridy = 0;
+        layoutConstraintsRight.gridx = 0;
 
-        layoutContraintsRight.weightx = 1.0;
+        layoutConstraintsRight.weightx = 1.0;
 
         JLabel lblUTF = new JLabel("   UTF-16");
         lblUTF.setFont(new Font(lblUTF.getFont().getName(), lblUTF.getFont().getStyle(), 10));
         lblZoom.setFont(new Font(lblZoom.getFont().getName(), lblZoom.getFont().getStyle(), 10));
-        pnlRightGrid.add(lblZoom, layoutContraintsRight);
+        pnlRightGrid.add(lblZoom, layoutConstraintsRight);
         JSeparator sepRight = new JSeparator(SwingConstants.VERTICAL);
-        layoutContraintsRight.gridy = 0;
-        layoutContraintsRight.gridx = 1;
-        layoutContraintsRight.fill = GridBagConstraints.VERTICAL;
-        pnlRightGrid.add(sepRight, layoutContraintsRight);
-        layoutContraintsRight.gridy = 0;
-        layoutContraintsRight.gridx = 2;
-        pnlRightGrid.add(lblUTF, layoutContraintsRight);
+        layoutConstraintsRight.gridy = 0;
+        layoutConstraintsRight.gridx = 1;
+        layoutConstraintsRight.fill = GridBagConstraints.VERTICAL;
+        pnlRightGrid.add(sepRight, layoutConstraintsRight);
+        layoutConstraintsRight.gridy = 0;
+        layoutConstraintsRight.gridx = 2;
+        pnlRightGrid.add(lblUTF, layoutConstraintsRight);
 
-        JPanel pnlLright = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        pnlLright.add(pnlRightGrid);
+        JPanel pnlRight = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        pnlRight.add(pnlRightGrid);
+        //endregion
 
+        //region AddingToFrame
         pnlSouth.add(pnlLeft);
-        pnlSouth.add(pnlLright);
+        pnlSouth.add(pnlRight);
         mnSouth.add(pnlSouth);
         add(mnSouth, BorderLayout.SOUTH);
-
+        //endregion
     }
 
-    private void save() {
-        try {
-            PrintWriter pw = new PrintWriter(absolutePath);
-            pw.println(txt.getText());
-            pw.close();
-            savedText = txt.getText();
-            setTitle(title);
-            saved = true;
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
+    //region FileMenuMethods
+    private void newNotePad() {
+        int confirmation = -1;
+        if (!savedSmw || !saved) {
+            confirmation = JOptionPane.showConfirmDialog(this, "would you like to save?", "are you sure?", JOptionPane.YES_NO_CANCEL_OPTION);
         }
-    }
 
-    private void saveAs() {
-        JFileChooser fileChooser = new JFileChooser(absolutePath);
-        fileChooser.setDialogTitle("Specify a file to save");
-
-        int userSelection = fileChooser.showSaveDialog(this);
-
-        if (userSelection == JFileChooser.APPROVE_OPTION) {
-            File fileToSave = fileChooser.getSelectedFile();
-            absolutePath = fileToSave.getAbsolutePath();
-            if (fileToSave.getName().endsWith(".txt"))
-                title = fileToSave.getName().substring(0, fileToSave.getName().length() - 4);
-            else
-                title = fileToSave.getName();
-            save();
+        if (confirmation == 0) {
+            saveAs();
+            dispose();
+        } else if (confirmation == 1) {
+            dispose();
         }
-        savedSmw = true;
+        if (confirmation != 2 && confirmation != -1) {
+            dispose();
+            new NotePad();
+        }
     }
 
     private void open() {
@@ -271,8 +447,6 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
                     BufferedReader bf = new BufferedReader(new FileReader(absolutePath));
                     txt.read(bf, null);
                     savedText = txt.getText();
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException(e);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -280,21 +454,34 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         }
     }
 
-    private void newNotePad() {
-        int confirmation = -1;
-        if (!savedSmw || !saved) {
-            confirmation = JOptionPane.showConfirmDialog(this, "would you like to save?", "are you sure?", JOptionPane.YES_NO_CANCEL_OPTION);
+    private void save() {
+        try {
+            PrintWriter pw = new PrintWriter(absolutePath);
+            pw.println(txt.getText());
+            pw.close();
+            savedText = txt.getText();
+            setTitle(title);
+            saved = true;
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
         }
+    }
 
-        if (confirmation == 0) {
-            saveAs();
-            dispose();
-        } else if (confirmation == 1) {
-            dispose();
-        }
-        if (confirmation != 2 && confirmation != -1) {
-            dispose();
-            new NotePad();
+    private void saveAs() {
+        JFileChooser fileChooser = new JFileChooser(absolutePath);
+        fileChooser.setDialogTitle("Specify a file to save");
+
+        int userSelection = fileChooser.showSaveDialog(this);
+
+        if (userSelection == JFileChooser.APPROVE_OPTION) {
+            File fileToSave = fileChooser.getSelectedFile();
+            absolutePath = fileToSave.getAbsolutePath();
+            if (fileToSave.getName().endsWith(".txt"))
+                title = fileToSave.getName().substring(0, fileToSave.getName().length() - 4);
+            else
+                title = fileToSave.getName();
+            savedSmw = true;
+            save();
         }
     }
 
@@ -308,52 +495,145 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         }
     }
 
-    private void printToPrinter()
-    {
+    private void printToPrinter() {
         PrinterJob job = PrinterJob.getPrinterJob();
         job.setPrintable(new OutputPrinter(txt.getText()));
         boolean doPrint = job.printDialog();
-        if (doPrint)
-        {
-            try
-            {
+        if (doPrint) {
+            try {
                 job.print();
-            }
-            catch (PrinterException e)
-            {
-                e.printStackTrace();
+            } catch (PrinterException e) {
+                e.fillInStackTrace();
             }
         }
     }
+    //endregion
 
+    private void findAndReplace(){
+        System.out.println("prova");
+        JDialog frgtDialog = new JDialog();
+        JPanel tabFindReplace = new JPanel(new GridLayout(5,1));
+        JLabel lblFind = new JLabel("Find what:      ");
+        JTextField txtFind = new JTextField(20);
+        txtFind.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                strFind = txtFind.getText();
+                findTxt();
+            }
+
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                strFind = txtFind.getText();
+                findTxt();
+            }
+
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                strFind = txtFind.getText();
+                findTxt();
+            }
+        });
+        lblNumFuond = new JLabel("   0/0");
+        JLabel lblReplace = new JLabel("Replace with: ");
+        JTextField txtReplace = new JTextField(20);
+        JPanel pnlFind = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        pnlFind.add(lblFind);
+        pnlFind.add(txtFind);
+        pnlFind.add(lblNumFuond);
+        JPanel pnlReplace = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        pnlReplace.add(lblReplace);
+        pnlReplace.add(txtReplace);
+        JPanel pnlMatchCase = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        ckbMatchCase = new JCheckBox();
+        ckbMatchCase.setToolTipText("Finds matches only if they have the same cases");
+        JLabel lblMatchCase = new JLabel("Match cases   ");
+        lblMatchCase.setToolTipText("Finds matches only if they have the same cases");
+        pnlMatchCase.add(lblMatchCase);
+        pnlMatchCase.add(ckbMatchCase);
+        JPanel pnlWords = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        ckbWords = new JCheckBox();
+        ckbWords.setToolTipText("Finds matches only if the whole word is the same as the searching word");
+        JLabel lblWords = new JLabel("Words              ");
+        lblWords.setToolTipText("Finds matches only if the whole word is the same as the searching word");
+        pnlWords.add(lblWords);
+        pnlWords.add(ckbWords);
+        btnReplace = new JButton("Replace");
+        btnReplace.addActionListener(this);
+        btnReplaceAll = new JButton("Replace All");
+        btnReplaceAll.addActionListener(this);
+        btnFindNext = new JButton("Find Next");
+        btnFindNext.addActionListener(this);
+        btnCancel = new JButton("Cancel");
+        btnCancel.addActionListener(this);
+        JPanel pnlBtn = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        pnlBtn.add(btnReplace);
+        pnlBtn.add(btnReplaceAll);
+        pnlBtn.add(btnFindNext);
+        pnlBtn.add(btnCancel);
+        tabFindReplace.add(pnlFind);
+        tabFindReplace.add(pnlReplace);
+        tabFindReplace.add(pnlMatchCase);
+        tabFindReplace.add(pnlWords);
+        tabFindReplace.add(pnlBtn);
+        frgtDialog.setSize(400,200);
+        frgtDialog.setLocationRelativeTo(this);
+        frgtDialog.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        frgtDialog.setTitle("Find and Replace");
+        frgtDialog.add(tabFindReplace);
+        frgtDialog.setModal(true);
+        frgtDialog.setVisible(true);
+    }
+
+    private void findTxt() {
+        String currentTxt;
+        if (ckbMatchCase.isSelected())
+            currentTxt = txt.getText();
+        else {
+            currentTxt = txt.getText().toLowerCase();
+            strFind = strFind.toLowerCase();
+        }
+        if (!currentTxt.contains(strFind)){
+            lblNumFuond.setText("   0/0");
+            return;
+        }
+
+        String [] fields = currentTxt.split(strFind);
+        if(currentTxt.startsWith(strFind)) startWithfind=true;
+        if(currentTxt.startsWith(strFind)) endWithfind=true;
+        //txt.getHighlighter().addHighlight(0,0,paint);
+    }
+
+    //region ActionListener
     @Override
     public void actionPerformed(ActionEvent e) {
         if (e.getSource() == mniNew) {
             newNotePad();
         }
-        if (e.getSource() == mniopen) {
+        if (e.getSource() == mniOpen) {
             open();
         }
         if (e.getSource() == mniSave) {
-            if (!savedSmw)
+            if (!savedSmw) {
                 saveAs();
-            else
+            } else {
                 save();
+            }
         }
         if (e.getSource() == mniSaveAs) {
             saveAs();
         }
         if (e.getSource() == mniExit) {
-            int confirmation = -1;
-            if (!savedSmw || !saved) {
-                confirmation = JOptionPane.showConfirmDialog(this, "would you like to save?", "are you sure?", JOptionPane.YES_NO_CANCEL_OPTION);
-            }
-
-            if (confirmation == 0) {
-                saveAs();
+            if (saved) {
                 dispose();
-            } else if (confirmation == 1 || confirmation == -1) {
-                dispose();
+            } else {
+                int confirmation = JOptionPane.showConfirmDialog(this, "would you like to save?", "are you sure?", JOptionPane.YES_NO_CANCEL_OPTION);
+                if (confirmation == 0) {
+                    saveAs();
+                    dispose();
+                } else if (confirmation == 1) {
+                    dispose();
+                }
             }
         }
         if (e.getSource() == mniAbout) {
@@ -385,24 +665,33 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         if (e.getSource() == mniPrint) {
             printToPrinter();
         }
-        if (e.getSource() == mniCut){
+        if (e.getSource() == mniCut) {
             txt.cut();
         }
-        if (e.getSource() == mniCopy){
+        if (e.getSource() == mniCopy) {
             txt.copy();
         }
-        if (e.getSource() == mniPaste){
+        if (e.getSource() == mniPaste) {
             txt.paste();
         }
-        if (e.getSource() == mniDelete){
+        if (e.getSource() == mniDelete) {
             int start = txt.getSelectionStart();
             int end = txt.getSelectionEnd();
             StringBuilder newTxt = new StringBuilder(txt.getText());
-            newTxt.delete(start,end);
+            newTxt.delete(start, end);
             txt.setText(newTxt.toString());
         }
+        if (e.getSource() == mniUndo) {
+            try {
+                manager.undo();
+            } catch (CannotUndoException cue) {
+                cue.fillInStackTrace();
+            }
+        }
     }
+    //endregion
 
+    //region DocListener
     @Override
     public void insertUpdate(DocumentEvent e) {
         isSaved();
@@ -417,6 +706,7 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
     public void changedUpdate(DocumentEvent e) {
         isSaved();
     }
+    //endregion
 
     //region WindowListener
     @Override
@@ -424,6 +714,8 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         int confirmation = -1;
         if (!savedSmw || !saved) {
             confirmation = JOptionPane.showConfirmDialog(this, "would you like to save?", "are you sure?", JOptionPane.YES_NO_CANCEL_OPTION);
+        }else{
+            dispose();
         }
 
         if (confirmation == 0) {
@@ -463,14 +755,16 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
     public void windowDeactivated(WindowEvent e) {
 
     }
+    //endregion
 
+    //region CaretListener
     @Override
     public void caretUpdate(CaretEvent e) {
-        int caretpos = txt.getCaretPosition();
-        int row = 0;
+        int caretPos = txt.getCaretPosition();
+        int row;
         try {
-            row = txt.getLineOfOffset(caretpos);
-            int column = caretpos - txt.getLineStartOffset(row);
+            row = txt.getLineOfOffset(caretPos);
+            int column = caretPos - txt.getLineStartOffset(row);
             lblLineCol.setText("Ln " + (row + 1) + ",Col " + (column + 1) + "   ");
             lblCharNumber.setText("   " + txt.getText().length() + " characters");
         } catch (BadLocationException ex) {
