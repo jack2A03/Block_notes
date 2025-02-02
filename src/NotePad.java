@@ -10,9 +10,8 @@ import java.awt.event.*;
 import java.awt.print.PrinterException;
 import java.awt.print.PrinterJob;
 import java.io.*;
-import java.util.List;
 
-public class NotePad extends JFrame implements ActionListener, DocumentListener, WindowListener, CaretListener {
+public class NotePad extends JFrame implements ActionListener, DocumentListener, WindowListener, CaretListener, MouseWheelListener {
 
     //region atr
     //region GUI atr
@@ -33,6 +32,8 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
     private JMenuItem mniPaste = null;
     private JMenuItem mniDelete = null;
 
+    private JMenuItem mniFindReplace = null;
+
     private JMenuItem mniZoomIn = null;
     private JMenuItem mniZoomOut = null;
     private JMenuItem mniResetZoom = null;
@@ -51,15 +52,6 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
 
     private final JLabel lblZoom = new JLabel("100%   ");
 
-    private JLabel lblNumFuond = null;
-
-    private JButton btnReplace = null;
-    private JButton btnReplaceAll = null;
-    private JButton btnFindNext = null;
-    private JButton btnCancel = null;
-
-    private JCheckBox ckbMatchCase = null;
-    private JCheckBox ckbWords = null;
     //endregion
 
     //region normal atr
@@ -74,14 +66,10 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
 
     private int fontSize = 10;
 
-    private String strFind = "";
-
     private final UndoManager manager = new UndoManager();
 
-    private boolean startWithfind = false;
-    private boolean endWithfind = false;
+    private final static String SOME_ACTION = "control 1";
 
-    private int currentFindPos = 0;
     //endregion
     //endregion
 
@@ -94,8 +82,6 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         setTitle(this.title);
         initUi();
         setVisible(true);
-        findAndReplace();
-        findTxt();
     }
     //endregion
 
@@ -156,13 +142,13 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         mniDelete.addActionListener(this);
         mnEdit.add(mniDelete);
         mnEdit.addSeparator();
+        mniFindReplace = new JMenuItem("Find and Replace");
+        mniFindReplace.setToolTipText("CTRL+H");
+        mniFindReplace.addActionListener(this);
+        mnEdit.add(mniFindReplace);
+        mnEdit.addSeparator();
         JMenuItem mniSelectAll = new JMenuItem("Select All");
-        mniSelectAll.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                txt.selectAll();
-            }
-        });
+        mniSelectAll.addActionListener(e -> txt.selectAll());
         mniSelectAll.setToolTipText("CTRL+A");
         mnEdit.add(mniSelectAll);
         //endregion
@@ -173,6 +159,9 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         mniZoomIn = new JMenuItem("Zoom in");
         mniZoomOut = new JMenuItem("Zoom out");
         mniResetZoom = new JMenuItem("Reset zoom");
+        mniZoomOut.setToolTipText("CTRL + Minus");
+        mniZoomIn.setToolTipText("CTRL + Plus");
+        mniResetZoom.setToolTipText("CTRL + 0");
         mnpZoom.add(mniZoomIn);
         mnpZoom.add(mniZoomOut);
         mnpZoom.add(mniResetZoom);
@@ -213,6 +202,7 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         txt.getDocument().addDocumentListener(this);
         txt.setLineWrap(true);
         txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
+        txt.addMouseWheelListener(this);
         //endregion
 
         //region KeyStrokeActions
@@ -231,6 +221,12 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
                 KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK);
         KeyStroke printKeyStroke = KeyStroke.getKeyStroke(
                 KeyEvent.VK_P, InputEvent.CTRL_DOWN_MASK);
+        KeyStroke resetZoomKeyStroke = KeyStroke.getKeyStroke(
+                KeyEvent.VK_0, InputEvent.CTRL_DOWN_MASK);
+        KeyStroke zoomOutKeyStroke = KeyStroke.getKeyStroke(
+                KeyEvent.VK_MINUS, InputEvent.CTRL_DOWN_MASK);
+        KeyStroke zoomInKeyStroke = KeyStroke.getKeyStroke(
+                KeyEvent.VK_PLUS, InputEvent.CTRL_DOWN_MASK);
 
         txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
                 .put(undoKeyStroke, "undoKeyStroke");
@@ -324,7 +320,65 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
                         }
                     }
                 });
+
+        txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(resetZoomKeyStroke, "redoKeyStroke");
+        txt
+                .getActionMap().put("redoKeyStroke", new AbstractAction() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        fontSize = 10;
+                        txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
+                        lblZoom.setText("100%   ");
+                    }
+                });
+
+        txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(zoomOutKeyStroke, "zoomOutKeyStroke");
+        txt
+                .getActionMap().put("zoomOutKeyStroke", new AbstractAction() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        if (fontSize > 1) {
+                            fontSize -= 1;
+                            txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
+                        }
+                        lblZoom.setText((fontSize * 10) + "%   ");
+                    }
+                });
+
+        txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(zoomInKeyStroke, "zoomInKeyStroke");
+        txt
+                .getActionMap().put("zoomInKeyStroke", new AbstractAction() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        if (fontSize < 50) {
+                            fontSize += 1;
+                            txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
+                        }
+                        lblZoom.setText((fontSize * 10) + "%   ");
+                    }
+                });
         //endregion
+
+        //region MouseAction
+        Action someAction = new AbstractAction() {
+            public void actionPerformed(ActionEvent e) {
+                if (fontSize < 50) {
+                    fontSize += 1;
+                    txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
+                }
+                lblZoom.setText((fontSize * 10) + "%   ");
+            }
+        };
+
+        txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(KeyStroke.getKeyStroke(SOME_ACTION), SOME_ACTION);
+        txt.getActionMap().put(SOME_ACTION, someAction);
+        //endregion
+
+
         //endregion
 
         //region ScrollPane
@@ -468,6 +522,9 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
     }
 
     private void saveAs() {
+
+        //TODO already exists condition
+
         JFileChooser fileChooser = new JFileChooser(absolutePath);
         fileChooser.setDialogTitle("Specify a file to save");
 
@@ -508,101 +565,6 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         }
     }
     //endregion
-
-    private void findAndReplace(){
-        System.out.println("prova");
-        JDialog frgtDialog = new JDialog();
-        JPanel tabFindReplace = new JPanel(new GridLayout(5,1));
-        JLabel lblFind = new JLabel("Find what:      ");
-        JTextField txtFind = new JTextField(20);
-        txtFind.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                strFind = txtFind.getText();
-                findTxt();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                strFind = txtFind.getText();
-                findTxt();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                strFind = txtFind.getText();
-                findTxt();
-            }
-        });
-        lblNumFuond = new JLabel("   0/0");
-        JLabel lblReplace = new JLabel("Replace with: ");
-        JTextField txtReplace = new JTextField(20);
-        JPanel pnlFind = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        pnlFind.add(lblFind);
-        pnlFind.add(txtFind);
-        pnlFind.add(lblNumFuond);
-        JPanel pnlReplace = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        pnlReplace.add(lblReplace);
-        pnlReplace.add(txtReplace);
-        JPanel pnlMatchCase = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        ckbMatchCase = new JCheckBox();
-        ckbMatchCase.setToolTipText("Finds matches only if they have the same cases");
-        JLabel lblMatchCase = new JLabel("Match cases   ");
-        lblMatchCase.setToolTipText("Finds matches only if they have the same cases");
-        pnlMatchCase.add(lblMatchCase);
-        pnlMatchCase.add(ckbMatchCase);
-        JPanel pnlWords = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        ckbWords = new JCheckBox();
-        ckbWords.setToolTipText("Finds matches only if the whole word is the same as the searching word");
-        JLabel lblWords = new JLabel("Words              ");
-        lblWords.setToolTipText("Finds matches only if the whole word is the same as the searching word");
-        pnlWords.add(lblWords);
-        pnlWords.add(ckbWords);
-        btnReplace = new JButton("Replace");
-        btnReplace.addActionListener(this);
-        btnReplaceAll = new JButton("Replace All");
-        btnReplaceAll.addActionListener(this);
-        btnFindNext = new JButton("Find Next");
-        btnFindNext.addActionListener(this);
-        btnCancel = new JButton("Cancel");
-        btnCancel.addActionListener(this);
-        JPanel pnlBtn = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        pnlBtn.add(btnReplace);
-        pnlBtn.add(btnReplaceAll);
-        pnlBtn.add(btnFindNext);
-        pnlBtn.add(btnCancel);
-        tabFindReplace.add(pnlFind);
-        tabFindReplace.add(pnlReplace);
-        tabFindReplace.add(pnlMatchCase);
-        tabFindReplace.add(pnlWords);
-        tabFindReplace.add(pnlBtn);
-        frgtDialog.setSize(400,200);
-        frgtDialog.setLocationRelativeTo(this);
-        frgtDialog.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        frgtDialog.setTitle("Find and Replace");
-        frgtDialog.add(tabFindReplace);
-        frgtDialog.setModal(true);
-        frgtDialog.setVisible(true);
-    }
-
-    private void findTxt() {
-        String currentTxt;
-        if (ckbMatchCase.isSelected())
-            currentTxt = txt.getText();
-        else {
-            currentTxt = txt.getText().toLowerCase();
-            strFind = strFind.toLowerCase();
-        }
-        if (!currentTxt.contains(strFind)){
-            lblNumFuond.setText("   0/0");
-            return;
-        }
-
-        String [] fields = currentTxt.split(strFind);
-        if(currentTxt.startsWith(strFind)) startWithfind=true;
-        if(currentTxt.startsWith(strFind)) endWithfind=true;
-        //txt.getHighlighter().addHighlight(0,0,paint);
-    }
 
     //region ActionListener
     @Override
@@ -658,10 +620,12 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
             txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
             lblZoom.setText("100%   ");
         }
-        if (e.getSource() == mncStatusBar)
+        if (e.getSource() == mncStatusBar) {
             mnSouth.setVisible(mncStatusBar.getState());
-        if (e.getSource() == mncWordWrap)
+        }
+        if (e.getSource() == mncWordWrap) {
             txt.setLineWrap(mncWordWrap.getState());
+        }
         if (e.getSource() == mniPrint) {
             printToPrinter();
         }
@@ -687,6 +651,10 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
             } catch (CannotUndoException cue) {
                 cue.fillInStackTrace();
             }
+        }
+        if (e.getSource() == mniFindReplace) {
+            Find_Replace findReplace = new Find_Replace(txt);
+            findReplace.setVisible(true);
         }
     }
     //endregion
@@ -714,7 +682,7 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         int confirmation = -1;
         if (!savedSmw || !saved) {
             confirmation = JOptionPane.showConfirmDialog(this, "would you like to save?", "are you sure?", JOptionPane.YES_NO_CANCEL_OPTION);
-        }else{
+        } else {
             dispose();
         }
 
@@ -769,6 +737,26 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
             lblCharNumber.setText("   " + txt.getText().length() + " characters");
         } catch (BadLocationException ex) {
             throw new RuntimeException(ex);
+        }
+    }
+    //endregion
+
+    //region MouseListener
+    @Override
+    public void mouseWheelMoved(MouseWheelEvent e) {
+        if (e.isControlDown()) {
+            if (e.getWheelRotation() < 0) {
+                JComponent component = (JComponent) e.getComponent();
+                Action action = component.getActionMap().get(SOME_ACTION);
+                if (action != null)
+                    action.actionPerformed(null);
+            } else {
+                if (fontSize > 1) {
+                    fontSize -= 1;
+                    txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
+                }
+                lblZoom.setText((fontSize * 10) + "%   ");
+            }
         }
     }
     //endregion
