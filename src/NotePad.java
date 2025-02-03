@@ -227,6 +227,8 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
                 KeyEvent.VK_MINUS, InputEvent.CTRL_DOWN_MASK);
         KeyStroke zoomInKeyStroke = KeyStroke.getKeyStroke(
                 KeyEvent.VK_PLUS, InputEvent.CTRL_DOWN_MASK);
+        KeyStroke findReplaceKeyStroke = KeyStroke.getKeyStroke(
+                KeyEvent.VK_H, InputEvent.CTRL_DOWN_MASK);
 
         txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
                 .put(undoKeyStroke, "undoKeyStroke");
@@ -358,6 +360,17 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
                             txt.setFont(new Font(txt.getFont().getName(), txt.getFont().getStyle(), fontSize));
                         }
                         lblZoom.setText((fontSize * 10) + "%   ");
+                    }
+                });
+
+        txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+                .put(findReplaceKeyStroke, "findReplaceKeyStroke");
+        txt
+                .getActionMap().put("findReplaceKeyStroke", new AbstractAction() {
+                    @Override
+                    public void actionPerformed(ActionEvent e) {
+                        Find_Replace findReplace = new Find_Replace(txt);
+                        findReplace.setVisible(true);
                     }
                 });
         //endregion

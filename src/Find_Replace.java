@@ -1,7 +1,6 @@
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import javax.swing.text.BadLocationException;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -12,12 +11,15 @@ public class Find_Replace extends JDialog implements ActionListener {
 
     private JButton btnFindNext = null;
     private JButton btnReplaceAll = null;
+    private JButton btnReplace = null;
     private JButton btnCancel = null;
 
     private JTextField txtReplace = new JTextField(20);
 
     private JCheckBox ckbMatchCase = null;
     private JCheckBox ckbWords = null;
+
+    private final JLabel lblNumFound = new JLabel("   0/0");;
 
     private String strFind = "";
 
@@ -27,7 +29,7 @@ public class Find_Replace extends JDialog implements ActionListener {
 
     private int currentPos = 0;
 
-    ArrayList<Integer> position = null;
+    ArrayList<Integer> position = new ArrayList<>();
 
     public Find_Replace(JTextArea parentTxt) {
         this.currentTxt = parentTxt.getText();
@@ -48,19 +50,21 @@ public class Find_Replace extends JDialog implements ActionListener {
             @Override
             public void insertUpdate(DocumentEvent e) {
                 strFind = txtFind.getText();
+                populatePosition();
             }
 
             @Override
             public void removeUpdate(DocumentEvent e) {
                 strFind = txtFind.getText();
+                populatePosition();
             }
 
             @Override
             public void changedUpdate(DocumentEvent e) {
                 strFind = txtFind.getText();
+                populatePosition();
             }
         });
-        JLabel lblNumFound = new JLabel("   0/0");
         JLabel lblReplace = new JLabel("Replace with: ");
         txtReplace = new JTextField(20);
         JPanel pnlFind = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -72,6 +76,7 @@ public class Find_Replace extends JDialog implements ActionListener {
         pnlReplace.add(txtReplace);
         JPanel pnlMatchCase = new JPanel(new FlowLayout(FlowLayout.LEFT));
         ckbMatchCase = new JCheckBox();
+        ckbMatchCase.addActionListener(this);
         ckbMatchCase.setToolTipText("Finds matches only if they have the same cases");
         JLabel lblMatchCase = new JLabel("Match cases   ");
         lblMatchCase.setToolTipText("Finds matches only if they have the same cases");
@@ -79,12 +84,13 @@ public class Find_Replace extends JDialog implements ActionListener {
         pnlMatchCase.add(ckbMatchCase);
         JPanel pnlWords = new JPanel(new FlowLayout(FlowLayout.LEFT));
         ckbWords = new JCheckBox();
+        ckbWords.addActionListener(this);
         ckbWords.setToolTipText("Finds matches only if the whole word is the same as the searching word");
         JLabel lblWords = new JLabel("Words              ");
         lblWords.setToolTipText("Finds matches only if the whole word is the same as the searching word");
         pnlWords.add(lblWords);
         pnlWords.add(ckbWords);
-        JButton btnReplace = new JButton("Replace");
+        btnReplace = new JButton("Replace");
         btnReplace.addActionListener(this);
         btnReplaceAll = new JButton("Replace All");
         btnReplaceAll.addActionListener(this);
@@ -110,57 +116,127 @@ public class Find_Replace extends JDialog implements ActionListener {
             if (!ckbWords.isSelected()) {
                 currentTxt = currentTxt.replaceAll(strFind, replacement);
                 parentTxt.setText(currentTxt);
+            } else {
+                replaceAllWholeWord();
             }
-            //TODO replace all matching case and whole words
         } else {
             if (!ckbWords.isSelected()) {
                 String replaceString = "(?i)" + Pattern.quote(strFind);
                 currentTxt = currentTxt.replaceAll(replaceString, replacement);
                 parentTxt.setText(currentTxt);
+            } else {
+                replaceAllWholeWord();
             }
-            //TODO replace all whole words
         }
     }
 
-    private void findAllPosition() {
+    private void replaceAllWholeWord(){
+        populatePosition();
+        Object[] positionsArray = position.toArray();
+        int strDiff = txtReplace.getText().length() - strFind.length();
+        for (int i = 0; i<positionsArray.length;i++){
+            parentTxt.replaceRange(txtReplace.getText(), Integer.parseInt(positionsArray[i]+"")+(i*strDiff), Integer.parseInt(positionsArray[i]+"")+(i*strDiff) + strFind.length());
+            System.out.println(i);
+        }
+    }
+
+    private void populatePosition() {
+        currentTxt = parentTxt.getText();
+        position = new ArrayList<>();
+        String strToFind;
         if (strFind.length() < currentTxt.length()) {
-            position = new ArrayList<>();
-            char[] chars = currentTxt.toCharArray();
+            char[] chars;
+            if (!ckbMatchCase.isSelected()) {
+                chars = currentTxt.toLowerCase().toCharArray();
+                strToFind = strFind.toLowerCase();
+            } else {
+                strToFind = strFind;
+                chars = currentTxt.toCharArray();
+            }
             StringBuilder createdString = new StringBuilder();
-            for (int i = currentPos; i < currentTxt.length() - strFind.length(); i++) {
-                for (int j = 0; j < strFind.length(); j++) {
+            for (int i = 0; i < currentTxt.length() - strToFind.length() + 1; i++) {
+                for (int j = 0; j < strToFind.length(); j++) {
                     createdString.append(chars[i + j]);
                 }
-                if (createdString.toString().equals(strFind)) {
-                    position.add(i);
-                    position.add(i + strFind.length());
-                    System.out.println(position);
-                    try {
-                        System.out.println(parentTxt.getText(i,i+strFind.length()));
-                    } catch (BadLocationException e) {
-                        throw new RuntimeException(e);
+                if (createdString.toString().equals(strToFind)) {
+                    if ((ckbWords.isSelected() && isWholeWord(i))) {
+                        position.add(i);
+                    } else if (!ckbWords.isSelected()) {
+                        position.add(i);
                     }
-                    currentPos = i + strFind.length();
                 }
                 createdString = new StringBuilder();
             }
-        }
-    }
-
-        //TODO find single section
-
-        //TODO replace single section
-
-        @Override
-        public void actionPerformed (ActionEvent e){
-            if (e.getSource() == btnCancel) {
-                dispose();
-            }
-            if (e.getSource() == btnReplaceAll) {
-                replaceAll(txtReplace.getText());
-            }
-            if (e.getSource() == btnFindNext) {
-                findAllPosition();
+            if (position.isEmpty()) {
+                parentTxt.select(0, 0);
+                lblNumFound.setText("   0/0");
+            }else{
+                if (currentPos == 0 && position.getFirst() != 0)
+                    currentPos = position.getFirst()+strFind.length();
+                parentTxt.select(currentPos+strFind.length(),currentPos);
+                if ((position.indexOf(currentPos - strFind.length())+1) != position.size())
+                    lblNumFound.setText("   " + (position.indexOf(currentPos - strFind.length())+2) + "/" + position.size());
+                else
+                    lblNumFound.setText("   " + 1 + "/" + position.size());
             }
         }
     }
+
+    private void findNext() {
+        populatePosition();
+        if (!position.isEmpty()) {
+            if ((currentPos == 0 || currentPos == position.getLast() + strFind.length())) {
+                parentTxt.select(position.getFirst(), strFind.length() + position.getFirst());
+                currentPos = strFind.length() + position.getFirst();
+            } else {
+                int index = position.indexOf(currentPos - strFind.length());
+                parentTxt.select(position.get(index + 1), strFind.length() + position.get(index + 1));
+                currentPos = strFind.length() + position.get(index + 1);
+            }
+        }
+    }
+
+    private void replace() {
+        if (parentTxt.getSelectedText().equals(strFind) && !ckbMatchCase.isSelected()) {
+            parentTxt.replaceRange(txtReplace.getText(), parentTxt.getSelectionStart(), parentTxt.getSelectionEnd());
+        } else if (parentTxt.getSelectedText().equalsIgnoreCase(strFind)) {
+            parentTxt.replaceRange(txtReplace.getText(), parentTxt.getSelectionStart(), parentTxt.getSelectionEnd());
+        }
+        findNext();
+    }
+
+    private boolean isWholeWord(int pos) {
+        String charBefore = " ";
+        if (pos != 0)
+            charBefore = String.valueOf(currentTxt.charAt(pos - 1));
+        String charAfter = String.valueOf(currentTxt.charAt(pos + strFind.length()));
+        String regex = "^[^<>{}\"/|;:.,~!?@#$%^=&*\\]\\\\()\\[¿§«»ω⊙¤°℃℉€¥£¢¡®©0-9_+]*$";
+        return ((!(charBefore.matches(regex)) || charBefore.equals(" ")) && ((!(charAfter.matches(regex)) || charAfter.equals(" "))));
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        if (e.getSource() == btnCancel) {
+            dispose();
+        }
+        if (e.getSource() == btnReplaceAll) {
+            replaceAll(txtReplace.getText());
+            populatePosition();
+            currentPos = 0;
+        }
+        if (e.getSource() == btnFindNext) {
+            findNext();
+        }
+        if (e.getSource() == ckbMatchCase) {
+            populatePosition();
+            currentPos = 0;
+        }
+        if (e.getSource() == ckbWords) {
+            position = new ArrayList<>();
+            currentPos = 0;
+        }
+        if (e.getSource() == btnReplace) {
+            replace();
+        }
+    }
+}
