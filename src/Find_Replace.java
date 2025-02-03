@@ -1,13 +1,16 @@
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.text.BadLocationException;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.ArrayList;
 import java.util.regex.Pattern;
 
-public class Find_Replace extends JDialog implements ActionListener{
+public class Find_Replace extends JDialog implements ActionListener {
 
+    private JButton btnFindNext = null;
     private JButton btnReplaceAll = null;
     private JButton btnCancel = null;
 
@@ -22,10 +25,14 @@ public class Find_Replace extends JDialog implements ActionListener{
 
     private final JTextArea parentTxt;
 
-    public Find_Replace(JTextArea parentTxt){
+    private int currentPos = 0;
+
+    ArrayList<Integer> position = null;
+
+    public Find_Replace(JTextArea parentTxt) {
         this.currentTxt = parentTxt.getText();
         this.parentTxt = parentTxt;
-        setSize(400,200);
+        setSize(400, 200);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setTitle("Find and Replace");
@@ -33,8 +40,8 @@ public class Find_Replace extends JDialog implements ActionListener{
         initUI();
     }
 
-    public void initUI(){
-        JPanel tabFindReplace = new JPanel(new GridLayout(5,1));
+    public void initUI() {
+        JPanel tabFindReplace = new JPanel(new GridLayout(5, 1));
         JLabel lblFind = new JLabel("Find what:      ");
         JTextField txtFind = new JTextField(20);
         txtFind.getDocument().addDocumentListener(new DocumentListener() {
@@ -81,7 +88,7 @@ public class Find_Replace extends JDialog implements ActionListener{
         btnReplace.addActionListener(this);
         btnReplaceAll = new JButton("Replace All");
         btnReplaceAll.addActionListener(this);
-        JButton btnFindNext = new JButton("Find Next");
+        btnFindNext = new JButton("Find Next");
         btnFindNext.addActionListener(this);
         btnCancel = new JButton("Cancel");
         btnCancel.addActionListener(this);
@@ -98,34 +105,62 @@ public class Find_Replace extends JDialog implements ActionListener{
         add(tabFindReplace);
     }
 
-    public void replaceAll(String replacement){
-        if(ckbMatchCase.isSelected()){
-            if(!ckbWords.isSelected()) {
+    public void replaceAll(String replacement) {
+        if (ckbMatchCase.isSelected()) {
+            if (!ckbWords.isSelected()) {
                 currentTxt = currentTxt.replaceAll(strFind, replacement);
                 parentTxt.setText(currentTxt);
             }
-                //TODO replace all matching case and whole words
-        }else {
-            if(!ckbWords.isSelected()) {
+            //TODO replace all matching case and whole words
+        } else {
+            if (!ckbWords.isSelected()) {
                 String replaceString = "(?i)" + Pattern.quote(strFind);
                 currentTxt = currentTxt.replaceAll(replaceString, replacement);
                 parentTxt.setText(currentTxt);
             }
-                //TODO replace all whole words
+            //TODO replace all whole words
         }
     }
 
-    //TODO find single section
-
-    //TODO replace single section
-
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        if (e.getSource() == btnCancel){
-            dispose();
-        }
-        if (e.getSource() == btnReplaceAll){
-            replaceAll(txtReplace.getText());
+    private void findAllPosition() {
+        if (strFind.length() < currentTxt.length()) {
+            position = new ArrayList<>();
+            char[] chars = currentTxt.toCharArray();
+            StringBuilder createdString = new StringBuilder();
+            for (int i = currentPos; i < currentTxt.length() - strFind.length(); i++) {
+                for (int j = 0; j < strFind.length(); j++) {
+                    createdString.append(chars[i + j]);
+                }
+                if (createdString.toString().equals(strFind)) {
+                    position.add(i);
+                    position.add(i + strFind.length());
+                    System.out.println(position);
+                    try {
+                        System.out.println(parentTxt.getText(i,i+strFind.length()));
+                    } catch (BadLocationException e) {
+                        throw new RuntimeException(e);
+                    }
+                    currentPos = i + strFind.length();
+                }
+                createdString = new StringBuilder();
+            }
         }
     }
-}
+
+        //TODO find single section
+
+        //TODO replace single section
+
+        @Override
+        public void actionPerformed (ActionEvent e){
+            if (e.getSource() == btnCancel) {
+                dispose();
+            }
+            if (e.getSource() == btnReplaceAll) {
+                replaceAll(txtReplace.getText());
+            }
+            if (e.getSource() == btnFindNext) {
+                findAllPosition();
+            }
+        }
+    }
