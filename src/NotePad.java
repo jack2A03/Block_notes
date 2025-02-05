@@ -228,7 +228,7 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         KeyStroke zoomInKeyStroke = KeyStroke.getKeyStroke(
                 KeyEvent.VK_PLUS, InputEvent.CTRL_DOWN_MASK);
         KeyStroke findReplaceKeyStroke = KeyStroke.getKeyStroke(
-                KeyEvent.VK_H, InputEvent.CTRL_DOWN_MASK);
+                KeyEvent.VK_F, InputEvent.CTRL_DOWN_MASK);
 
         txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
                 .put(undoKeyStroke, "undoKeyStroke");
@@ -324,9 +324,9 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
                 });
 
         txt.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
-                .put(resetZoomKeyStroke, "redoKeyStroke");
+                .put(resetZoomKeyStroke, "resetZoomKeyStroke");
         txt
-                .getActionMap().put("redoKeyStroke", new AbstractAction() {
+                .getActionMap().put("resetZoomKeyStroke", new AbstractAction() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
                         fontSize = 10;
@@ -369,8 +369,8 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
                 .getActionMap().put("findReplaceKeyStroke", new AbstractAction() {
                     @Override
                     public void actionPerformed(ActionEvent e) {
-                        Find_Replace findReplace = new Find_Replace(txt);
-                        findReplace.setVisible(true);
+                        Find_Replace fr = new Find_Replace(txt);
+                        fr.setVisible(true);
                     }
                 });
         //endregion
@@ -535,11 +535,7 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
     }
 
     private void saveAs() {
-
-        //TODO already exists condition
-
-        JFileChooser fileChooser = new JFileChooser(absolutePath);
-        fileChooser.setDialogTitle("Specify a file to save");
+        JFileChooser fileChooser = getJFileChooser();
 
         int userSelection = fileChooser.showSaveDialog(this);
 
@@ -553,6 +549,31 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
             savedSmw = true;
             save();
         }
+    }
+
+    private JFileChooser getJFileChooser() {
+        int numFile = 0;
+        String [] pathFields = absolutePath.split("/");
+        StringBuilder path = new StringBuilder();
+        for (int i = 0; i<pathFields.length-1;i++){
+            path.append(pathFields[i]).append("/");
+        }
+        path.append(title).append(".txt");
+        File f = new File(absolutePath);
+        if (!savedSmw) {
+            while (f.exists()) {
+                numFile++;
+                if (numFile != 1)
+                    path.replace(path.length()-(title + "(" + (numFile - 1) + ").txt").length(), path.length(), title + "(" + numFile + ").txt");
+                else
+                    path.replace(path.length() -(title + ".txt").length(), path.length(), title + "(" + numFile + ").txt");
+                f = new File(path.toString());
+            }
+        }
+        JFileChooser fileChooser = new JFileChooser(path.toString());
+        fileChooser.setDialogTitle("Specify a file to save");
+        fileChooser.setSelectedFile(f);
+        return fileChooser;
     }
 
     private void isSaved() {
