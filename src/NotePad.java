@@ -43,7 +43,9 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
 
     private JMenuItem mniAbout = null;
 
-    private JTextArea txt = null;
+    private JTextArea txt = new JTextArea();
+
+    private JScrollPane scrollPane = new JScrollPane(txt);
 
     private JMenuBar mnSouth = new JMenuBar();
 
@@ -197,7 +199,6 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         //region txt + keyStrokes
 
         //region txt
-        txt = new JTextArea();
         txt.addCaretListener(this);
         txt.getDocument().addDocumentListener(this);
         txt.setLineWrap(true);
@@ -395,7 +396,6 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
         //endregion
 
         //region ScrollPane
-        JScrollPane scrollPane = new JScrollPane(txt);
         add(scrollPane, BorderLayout.CENTER);
         //endregion
 
@@ -553,9 +553,9 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
 
     private JFileChooser getJFileChooser() {
         int numFile = 0;
-        String [] pathFields = absolutePath.split("/");
+        String[] pathFields = absolutePath.split("/");
         StringBuilder path = new StringBuilder();
-        for (int i = 0; i<pathFields.length-1;i++){
+        for (int i = 0; i < pathFields.length - 1; i++) {
             path.append(pathFields[i]).append("/");
         }
         path.append(title).append(".txt");
@@ -564,9 +564,9 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
             while (f.exists()) {
                 numFile++;
                 if (numFile != 1)
-                    path.replace(path.length()-(title + "(" + (numFile - 1) + ").txt").length(), path.length(), title + "(" + numFile + ").txt");
+                    path.replace(path.length() - (title + "(" + (numFile - 1) + ").txt").length(), path.length(), title + "(" + numFile + ").txt");
                 else
-                    path.replace(path.length() -(title + ".txt").length(), path.length(), title + "(" + numFile + ").txt");
+                    path.replace(path.length() - (title + ".txt").length(), path.length(), title + "(" + numFile + ").txt");
                 f = new File(path.toString());
             }
         }
@@ -792,6 +792,10 @@ public class NotePad extends JFrame implements ActionListener, DocumentListener,
                 lblZoom.setText((fontSize * 10) + "%   ");
             }
         }
+        if (!e.isControlDown()){
+            //TODO
+            scrollPane.getVerticalScrollBar().setValue(scrollPane.getVerticalScrollBar().getValue()+(e.getWheelRotation()*20));
+        }
+        //endregion
     }
-    //endregion
 }

@@ -8,5 +8,6 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="javax.print-1.0.5" level="project" />
+    <orderEntry type="library" name="javafx-swing-24-ea+5" level="project" />
   </component>
 </module>
